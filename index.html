@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
@@ -252,19 +252,38 @@
     }
 
     /* Right Panel (Post-it) */
-    #right-panel { flex: 1; background: var(--bg-secondary); }
+    #right-panel { flex: 1; background: var(--bg-secondary); position: relative; }
     .postit-grid-container { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 20px; display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: repeat(3, minmax(170px, 1fr)); gap: 16px; align-content: start; }
     .postit-grid-container::-webkit-scrollbar { width: 6px; }
     .postit-grid-container::-webkit-scrollbar-track { background: var(--bg-secondary); }
     .postit-grid-container::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    .postit-card { background: linear-gradient(135deg, #fffde7 0%, #fff59d 100%); border: 1px solid rgba(234,179,8,0.35); border-radius: 4px 16px 16px 16px; box-shadow: 2px 4px 12px var(--postit-shadow), 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; overflow: hidden; transition: transform 0.2s, box-shadow 0.2s; min-height: 160px; }
-    .postit-card:hover { transform: translateY(-3px); box-shadow: 4px 8px 18px rgba(202,138,4,0.25); }
-    .postit-top-bar { background: #fff176; border-bottom: 1px solid rgba(234,179,8,0.3); padding: 6px 12px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
-    .postit-number { font-size: 0.72rem; font-weight: 800; color: #713f12; }
+    .postit-card { background: linear-gradient(135deg, #fffde7 0%, #fff59d 100%); border: 1px solid rgba(234,179,8,0.35); border-radius: 4px 16px 16px 16px; box-shadow: 2px 4px 12px var(--postit-shadow), 0 1px 2px rgba(0,0,0,0.05); display: flex; flex-direction: column; overflow: hidden; transition: box-shadow 0.2s; min-height: 160px; }
+    .postit-card:not(.postit-expanded):hover { transform: translateY(-3px); box-shadow: 4px 8px 18px rgba(202,138,4,0.25); }
+    .postit-top-bar { background: #fff176; border-bottom: 1px solid rgba(234,179,8,0.3); padding: 6px 10px; display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .postit-number { font-size: 0.72rem; font-weight: 800; color: #713f12; flex: 1; }
+    .postit-top-actions { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+    .btn-postit-expand { background: rgba(37,99,235,0.12); color: #1d4ed8; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.68rem; font-weight: 700; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+    .btn-postit-expand:hover { background: #2563eb; color: #fff; }
     .btn-postit-clear { background: rgba(113,63,18,0.1); color: #713f12; border: none; border-radius: 4px; padding: 3px 8px; font-size: 0.68rem; font-weight: 700; cursor: pointer; transition: all 0.15s; }
     .btn-postit-clear:hover { background: #ef4444; color: #fff; }
     .postit-textarea { flex: 1; width: 100%; padding: 12px 14px; border: none; outline: none; resize: none; background: transparent; font-size: 0.88rem; line-height: 1.5; color: #3e2723; font-weight: 500; }
     .postit-textarea::placeholder { color: rgba(113,63,18,0.35); }
+    /* Expanded postit: covers entire right panel */
+    .postit-expanded {
+      position: absolute !important;
+      top: 0 !important; left: 0 !important; right: 0 !important; bottom: 0 !important;
+      z-index: 50;
+      border-radius: 0 !important;
+      min-height: unset !important;
+      transform: none !important;
+      box-shadow: 0 8px 40px rgba(0,0,0,0.18) !important;
+      animation: postitExpand 0.22s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .postit-expanded .postit-textarea { font-size: 1rem; line-height: 1.65; }
+    @keyframes postitExpand {
+      from { opacity: 0.6; transform: scale(0.94); }
+      to   { opacity: 1;   transform: scale(1); }
+    }
 
     /* Mobile */
     @media (max-width: 900px) {
@@ -687,18 +706,109 @@
     }
   }
 
+  let expandedPostitId = null;
+
+  function expandPostit(id) {
+    // collapse any previously expanded one first
+    if (expandedPostitId !== null && expandedPostitId !== id) {
+      collapsePostit(expandedPostitId, false);
+    }
+    expandedPostitId = id;
+    const card = document.querySelector('.postit-card[data-postit-id="' + id + '"]');
+    if (!card) return;
+
+    // insert a placeholder in the grid to preserve layout
+    const grid = document.getElementById('postit-grid');
+    const placeholder = document.createElement('div');
+    placeholder.dataset.placeholder = id;
+    placeholder.style.cssText = 'visibility:hidden;min-height:160px;';
+    grid.insertBefore(placeholder, card);
+
+    // move card out of grid into right-panel directly
+    const rightPanel = document.getElementById('right-panel');
+    rightPanel.appendChild(card);
+    card.classList.add('postit-expanded');
+
+    // update button
+    const expandBtn = card.querySelector('.btn-postit-expand');
+    if (expandBtn) {
+      expandBtn.innerHTML = '⤡ 원래 크기로';
+      expandBtn.onclick = function() { collapsePostit(id, true); };
+    }
+    // focus textarea
+    const ta = card.querySelector('.postit-textarea');
+    if (ta) ta.focus();
+  }
+
+  function collapsePostit(id, animate) {
+    if (expandedPostitId === id) expandedPostitId = null;
+    const card = document.querySelector('.postit-card[data-postit-id="' + id + '"]');
+    if (!card) return;
+
+    // move card back to grid
+    const grid = document.getElementById('postit-grid');
+    const placeholder = grid.querySelector('[data-placeholder="' + id + '"]');
+    card.classList.remove('postit-expanded');
+
+    if (placeholder) {
+      grid.insertBefore(card, placeholder);
+      placeholder.remove();
+    } else {
+      // fallback: re-render
+      renderPostits();
+      return;
+    }
+
+    // update button
+    const expandBtn = card.querySelector('.btn-postit-expand');
+    if (expandBtn) {
+      expandBtn.innerHTML = '⤢ 크게';
+      expandBtn.onclick = function() { expandPostit(id); };
+    }
+  }
+
   function renderPostits() {
+    expandedPostitId = null;
     const container = document.getElementById('postit-grid');
     container.innerHTML = '';
     appState.postits.forEach(p => {
       const card = document.createElement('div');
       card.className = 'postit-card';
-      card.innerHTML = 
-        '<div class="postit-top-bar">' +
-          '<span class="postit-number">📌 Post-it #' + p.id + '</span>' +
-          '<button class="btn-postit-clear" onclick="clearPostitContent(' + p.id + ')">내용삭제</button>' +
-        '</div>' +
-        '<textarea class="postit-textarea" placeholder="메모를 입력하세요... (#' + p.id + ')" oninput="updatePostitContent(' + p.id + ', this.value)">' + escapeHtml(p.content) + '</textarea>';
+      card.dataset.postitId = p.id;
+
+      const topBar = document.createElement('div');
+      topBar.className = 'postit-top-bar';
+
+      const numSpan = document.createElement('span');
+      numSpan.className = 'postit-number';
+      numSpan.textContent = '📌 Post-it #' + p.id;
+
+      const actions = document.createElement('div');
+      actions.className = 'postit-top-actions';
+
+      const expandBtn = document.createElement('button');
+      expandBtn.className = 'btn-postit-expand';
+      expandBtn.innerHTML = '⤢ 크게';
+      expandBtn.onclick = (function(pid) { return function() { expandPostit(pid); }; })(p.id);
+
+      const clearBtn = document.createElement('button');
+      clearBtn.className = 'btn-postit-clear';
+      clearBtn.textContent = '내용삭제';
+      clearBtn.onclick = (function(pid) { return function() { clearPostitContent(pid); }; })(p.id);
+
+      actions.appendChild(expandBtn);
+      actions.appendChild(clearBtn);
+      topBar.appendChild(numSpan);
+      topBar.appendChild(actions);
+
+      const textarea = document.createElement('textarea');
+      textarea.className = 'postit-textarea';
+      textarea.placeholder = '메모를 입력하세요... (#' + p.id + ')';
+      textarea.value = p.content;
+      textarea.oninput = (function(pid) { return function() { updatePostitContent(pid, this.value); }; })(p.id);
+
+      card.appendChild(topBar);
+      card.appendChild(textarea);
       container.appendChild(card);
     });
   }
