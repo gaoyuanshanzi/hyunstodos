@@ -23,6 +23,8 @@
       --success-light: #ecfdf5;
       --danger: #ef4444;
       --danger-light: #fef2f2;
+      --warning: #f59e0b;
+      --warning-light: #fef3c7;
       --postit-shadow: rgba(202, 138, 4, 0.18);
       --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
       --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.08), 0 2px 4px -2px rgba(0,0,0,0.05);
@@ -46,11 +48,16 @@
     .login-error { color: var(--danger); font-size: 0.84rem; margin-top: 12px; min-height: 20px; font-weight: 600; }
 
     /* App Header */
-    .app-header { background: #fff; border-bottom: 1px solid var(--border-color); padding: 12px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; box-shadow: var(--shadow-sm); }
+    .app-header { background: #fff; border-bottom: 1px solid var(--border-color); padding: 10px 24px; display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; box-shadow: var(--shadow-sm); }
     .brand { display: flex; align-items: center; gap: 10px; }
     .brand-logo { font-size: 1.4rem; }
     .brand-name { font-size: 1.15rem; font-weight: 800; color: var(--text-main); letter-spacing: -0.5px; }
-    .btn-logout { background: var(--bg-tertiary); color: var(--text-sub); border: 1px solid var(--border-color); border-radius: 8px; padding: 7px 14px; font-size: 0.82rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+    .header-actions { display: flex; align-items: center; gap: 10px; }
+    .sync-status-badge { font-size: 0.76rem; font-weight: 700; padding: 4px 10px; border-radius: 99px; display: flex; align-items: center; gap: 5px; background: var(--bg-tertiary); color: var(--text-sub); border: 1px solid var(--border-color); }
+    .sync-status-badge.synced { background: var(--success-light); color: var(--success); border-color: #a7f3d0; }
+    .sync-status-badge.syncing { background: var(--warning-light); color: var(--warning); border-color: #fde68a; }
+    .sync-status-badge.error { background: var(--danger-light); color: var(--danger); border-color: #fecaca; }
+    .btn-logout { background: var(--bg-tertiary); color: var(--text-sub); border: 1px solid var(--border-color); border-radius: 8px; padding: 6px 12px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
     .btn-logout:hover { background: #e2e8f0; color: var(--text-main); }
 
     /* Mobile Tabs */
@@ -135,7 +142,8 @@
       .postit-grid-container { grid-template-columns: repeat(2, 1fr); grid-template-rows: auto; padding: 14px; gap: 12px; }
     }
     @media (max-width: 540px) {
-      .app-header { padding: 10px 16px; }
+      .app-header { padding: 8px 14px; }
+      .brand-name { font-size: 1rem; }
       .panel-header { padding: 10px 14px; }
       .section-header { padding: 10px 14px; }
       .todo-list-scroll { padding: 10px 14px; }
@@ -173,6 +181,9 @@
     <span class="brand-name">Hyun's Todos &amp; Post-it</span>
   </div>
   <div class="header-actions">
+    <div id="sync-status" class="sync-status-badge">
+      <span>⚡</span> <span id="sync-text">Neon DB 연결중</span>
+    </div>
     <button class="btn-logout" onclick="handleLogout()">로그아웃</button>
   </div>
 </header>
@@ -246,7 +257,50 @@
     postits: Array.from({ length: 9 }, (_, i) => ({ id: i + 1, content: '' }))
   };
 
-  function loadState() {
+  let syncTimeout = null;
+
+  function updateSyncStatus(status, text) {
+    const badge = document.getElementById('sync-status');
+    const label = document.getElementById('sync-text');
+    if (!badge || !label) return;
+
+    badge.className = 'sync-status-badge ' + status;
+    label.textContent = text;
+  }
+
+  // Load from Neon DB and fallback to local storage
+  async function loadStateFromDB() {
+    updateSyncStatus('syncing', 'Neon DB 불러오는 중...');
+    try {
+      const res = await fetch('/api/sync');
+      if (res.ok) {
+        const json = await res.json();
+        if (json.success && json.data) {
+          appState.todos.personal = json.data.todos?.personal || [];
+          appState.todos.company = json.data.todos?.company || [];
+          if (Array.isArray(json.data.postits)) {
+            appState.postits = json.data.postits;
+            while (appState.postits.length < 9) {
+              appState.postits.push({ id: appState.postits.length + 1, content: '' });
+            }
+          }
+          localStorage.setItem(DATA_KEY, JSON.stringify(appState));
+          updateSyncStatus('synced', 'Neon DB 실시간 연동됨');
+          renderAll();
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Neon DB fetch failed, using local storage cache', e);
+    }
+
+    // Fallback to local storage if DB empty or offline
+    loadLocalState();
+    updateSyncStatus('synced', 'Neon DB 연결 대기 (로컬 캐시)');
+    renderAll();
+  }
+
+  function loadLocalState() {
     try {
       const saved = localStorage.getItem(DATA_KEY);
       if (saved) {
@@ -263,15 +317,47 @@
         }
       }
     } catch (e) {
-      console.error('Failed to load state', e);
+      console.error('Failed to load local state', e);
     }
   }
 
-  function saveState() {
+  // Save to localStorage immediately and debounce save to Neon DB
+  function saveState(immediate = false) {
     try {
       localStorage.setItem(DATA_KEY, JSON.stringify(appState));
     } catch (e) {
-      console.error('Failed to save state', e);
+      console.error('Failed to save to local storage', e);
+    }
+
+    updateSyncStatus('syncing', 'Neon DB 저장 중...');
+
+    if (syncTimeout) {
+      clearTimeout(syncTimeout);
+    }
+
+    const doSync = async () => {
+      try {
+        const res = await fetch('/api/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ data: appState })
+        });
+        if (res.ok) {
+          const nowTime = new Date().toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+          updateSyncStatus('synced', 'Neon DB 저장완료 (' + nowTime + ')');
+        } else {
+          updateSyncStatus('error', 'Neon DB 저장 실패 (로컬보관)');
+        }
+      } catch (err) {
+        console.error('Neon DB save error', err);
+        updateSyncStatus('error', '오프라인 (로컬 보관)');
+      }
+    };
+
+    if (immediate) {
+      doSync();
+    } else {
+      syncTimeout = setTimeout(doSync, 300);
     }
   }
 
@@ -280,8 +366,7 @@
     const overlay = document.getElementById('login-overlay');
     if (isAuth) {
       overlay.style.display = 'none';
-      loadState();
-      renderAll();
+      loadStateFromDB();
     } else {
       overlay.style.display = 'flex';
       setTimeout(() => { document.getElementById('admin-id').focus(); }, 100);
@@ -297,8 +382,7 @@
     if (idInput === 'admin' && pwInput === '123jesus') {
       sessionStorage.setItem(AUTH_KEY, 'true');
       document.getElementById('login-overlay').style.display = 'none';
-      loadState();
-      renderAll();
+      loadStateFromDB();
       errMsg.textContent = '';
     } else {
       errMsg.textContent = '❌ 관리자 ID 또는 비밀번호가 일치하지 않습니다.';
@@ -343,7 +427,7 @@
       createdAt: new Date().toISOString()
     };
     appState.todos[type].unshift(newItem);
-    saveState();
+    saveState(true);
     renderTodos(type);
     setTimeout(() => {
       const input = document.querySelector('[data-id="' + newItem.id + '"] .todo-title-input');
@@ -355,7 +439,7 @@
     const item = appState.todos[type].find(t => t.id === id);
     if (item) {
       item.title = val;
-      saveState();
+      saveState(false);
     }
   }
 
@@ -366,7 +450,7 @@
       item.progress = num;
       if (num === 100) item.completed = true;
       else if (item.completed && num < 100) item.completed = false;
-      saveState();
+      saveState(false);
 
       const card = document.querySelector('[data-id="' + id + '"]');
       if (card) {
@@ -397,14 +481,14 @@
     if (item) {
       item.completed = !item.completed;
       if (item.completed) item.progress = 100;
-      saveState();
+      saveState(true);
       renderTodos(type);
     }
   }
 
   function deleteTodo(type, id) {
     appState.todos[type] = appState.todos[type].filter(t => t.id !== id);
-    saveState();
+    saveState(true);
     renderTodos(type);
   }
 
@@ -451,7 +535,7 @@
     const postit = appState.postits.find(p => p.id === id);
     if (postit) {
       postit.content = val;
-      saveState();
+      saveState(false);
     }
   }
 
@@ -460,7 +544,7 @@
       const postit = appState.postits.find(p => p.id === id);
       if (postit) {
         postit.content = '';
-        saveState();
+        saveState(true);
         renderPostits();
       }
     }
@@ -494,7 +578,7 @@
       ? '<tr><td colspan="3" style="text-align:center;color:#94a3b8;padding:16px;">항목 없음</td></tr>'
       : arr.map(t => '<tr><td style="padding:12px 16px;">' + (t.completed ? '<s style="color:#94a3b8;">' + (escapeHtml(t.title)||'(미입력)') + '</s>' : (escapeHtml(t.title)||'(미입력)')) + '</td><td style="padding:12px 16px;"><div style="display:flex;align-items:center;gap:8px;"><div style="flex:1;background:#e2e8f0;border-radius:99px;height:8px;overflow:hidden;"><div style="background:#2563eb;width:' + t.progress + '%;height:100%;"></div></div><span style="font-weight:700;color:#2563eb;font-size:12px;">' + t.progress + '%</span></div></td><td style="padding:12px 16px;text-align:center;">' + (t.completed ? '<span style="background:#ecfdf5;color:#10b981;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:700;">✓ 완료</span>' : '<span style="background:#eff6ff;color:#2563eb;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:700;">진행중</span>') + '</td></tr>').join('');
 
-    const html = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8" /><title>To-Do 목록 내보내기 (' + dateStr + ')</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#0f172a;padding:40px 20px;}.container{max-width:860px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.06);}h1{font-size:24px;color:#0f172a;margin-bottom:6px;}.meta{font-size:13px;color:#64748b;margin-bottom:30px;}.section-title{font-size:18px;font-weight:700;color:#1e293b;margin:24px 0 8px;}table{width:100%;border-collapse:collapse;margin-top:10px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);}th{background:#2563eb;color:#fff;text-align:left;font-size:14px;padding:12px 16px;}td{border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;}</style></head><body><div class="container"><h1>📝 To-Do 목록 리포트</h1><div class="meta">내보낸 일시: ' + dateStr + ' | 관리자: admin</div><div class="section-title">👤 개인 To-Do</div><table><thead><tr><th>할 일 내용</th><th style="width:180px;">진행률</th><th style="width:100px;text-align:center;">상태</th></tr></thead><tbody>' + makeRows(appState.todos.personal) + '</tbody></table><div class="section-title" style="margin-top:36px;">🏢 회사 To-Do</div><table><thead><tr><th>할 일 내용</th><th style="width:180px;">진행률</th><th style="width:100px;text-align:center;">상태</th></tr></thead><tbody>' + makeRows(appState.todos.company) + '</tbody></table></div></body></html>';
+    const html = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8" /><title>To-Do 목록 내보내기 (' + dateStr + ')</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#0f172a;padding:40px 20px;}.container{max-width:860px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.06);}h1{font-size:24px;color:#0f172a;margin-bottom:6px;}.meta{font-size:13px;color:#64748b;margin-bottom:30px;}.section-title{font-size:18px;font-weight:700;color:#1e293b;margin:24px 0 8px;}table{width:100%;border-collapse:collapse;margin-top:10px;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.06);}th{background:#2563eb;color:#fff;text-align:left;font-size:14px;padding:12px 16px;}td{border-bottom:1px solid #e2e8f0;font-size:14px;color:#0f172a;}</style></head><body><div class="container"><h1>📝 To-Do 목록 리포트</h1><div class="meta">내보낸 일시: ' + dateStr + ' | 관리자: admin | DB: Neon PostgreSQL</div><div class="section-title">👤 개인 To-Do</div><table><thead><tr><th>할 일 내용</th><th style="width:180px;">진행률</th><th style="width:100px;text-align:center;">상태</th></tr></thead><tbody>' + makeRows(appState.todos.personal) + '</tbody></table><div class="section-title" style="margin-top:36px;">🏢 회사 To-Do</div><table><thead><tr><th>할 일 내용</th><th style="width:180px;">진행률</th><th style="width:100px;text-align:center;">상태</th></tr></thead><tbody>' + makeRows(appState.todos.company) + '</tbody></table></div></body></html>';
 
     downloadBlob(html, 'Hyun_Todos_' + new Date().toISOString().slice(0,10) + '.html');
   }
@@ -503,7 +587,7 @@
     const dateStr = new Date().toLocaleString('ko-KR');
     const cards = appState.postits.map(p => '<div style="background:linear-gradient(135deg, #fffde7 0%, #fff59d 100%);border:1px solid rgba(234,179,8,0.4);border-radius:4px 16px 16px 16px;padding:16px;box-shadow:2px 4px 12px rgba(202,138,4,0.15);min-height:160px;display:flex;flex-direction:column;"><div style="font-size:12px;font-weight:800;color:#713f12;border-bottom:1px solid rgba(234,179,8,0.3);padding-bottom:6px;margin-bottom:10px;">📌 Post-it #' + p.id + '</div><div style="font-size:14px;line-height:1.6;color:#3e2723;white-space:pre-wrap;flex:1;">' + (escapeHtml(p.content) || '<span style="color:rgba(113,63,18,0.35);font-style:italic;">(작성된 메모가 없습니다)</span>') + '</div></div>').join('');
 
-    const html = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8" /><title>Post-it 메모 내보내기 (' + dateStr + ')</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#0f172a;padding:40px 20px;}.container{max-width:960px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.06);}h1{font-size:24px;color:#0f172a;margin-bottom:6px;}.meta{font-size:13px;color:#64748b;margin-bottom:30px;}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}@media (max-width: 768px){.grid{grid-template-columns:1fr;}}</style></head><body><div class="container"><h1>📌 Post-it 메모보드 리포트 (9개)</h1><div class="meta">내보낸 일시: ' + dateStr + ' | 관리자: admin</div><div class="grid">' + cards + '</div></div></body></html>';
+    const html = '<!DOCTYPE html><html lang="ko"><head><meta charset="UTF-8" /><title>Post-it 메모 내보내기 (' + dateStr + ')</title><style>body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:#f8fafc;color:#0f172a;padding:40px 20px;}.container{max-width:960px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,0.06);}h1{font-size:24px;color:#0f172a;margin-bottom:6px;}.meta{font-size:13px;color:#64748b;margin-bottom:30px;}.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}@media (max-width: 768px){.grid{grid-template-columns:1fr;}}</style></head><body><div class="container"><h1>📌 Post-it 메모보드 리포트 (9개)</h1><div class="meta">내보낸 일시: ' + dateStr + ' | 관리자: admin | DB: Neon PostgreSQL</div><div class="grid">' + cards + '</div></div></body></html>';
 
     downloadBlob(html, 'Hyun_Postit_' + new Date().toISOString().slice(0,10) + '.html');
   }

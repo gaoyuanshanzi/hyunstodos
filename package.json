@@ -4,5 +4,9 @@
   "description": "Web-based To-Do and Post-it board",
   "scripts": {
     "start": "npx serve ."
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
+    "pg": "^8.23.0"
   }
 }
