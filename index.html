@@ -74,7 +74,7 @@
     .btn-export:hover { background: var(--primary-hover); }
 
     /* Left Panel */
-    #left-panel { width: 48%; min-width: 360px; border-right: 1px solid var(--border-color); }
+    #left-panel { width: 52%; min-width: 380px; border-right: 1px solid var(--border-color); }
     .todo-sections-container { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
     .todo-section { flex: 1; display: flex; flex-direction: column; overflow: hidden; border-bottom: 1px solid var(--border-color); }
     .todo-section:last-child { border-bottom: none; }
@@ -84,36 +84,172 @@
     .section-count { font-size: 0.75rem; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 2px 8px; border-radius: 99px; }
     .btn-add { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); border-radius: 8px; padding: 5px 12px; font-size: 0.8rem; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
     .btn-add:hover { background: var(--primary); color: #fff; }
-    .todo-list-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 14px 20px; display: flex; flex-direction: column; gap: 10px; }
+    .todo-list-scroll { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 10px 16px; display: flex; flex-direction: column; gap: 6px; }
     .todo-list-scroll::-webkit-scrollbar { width: 6px; }
     .todo-list-scroll::-webkit-scrollbar-track { background: var(--bg-secondary); }
     .todo-list-scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
-    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 30px 10px; color: var(--text-muted); font-size: 0.85rem; text-align: center; gap: 6px; }
+    .empty-state { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 10px; color: var(--text-muted); font-size: 0.85rem; text-align: center; gap: 6px; }
     .empty-state-icon { font-size: 1.8rem; opacity: 0.6; }
 
-    /* Todo Card */
-    .todo-card { background: #fff; border: 1px solid var(--border-color); border-radius: 12px; padding: 12px 14px; box-shadow: var(--shadow-sm); display: flex; flex-direction: column; gap: 10px; transition: all 0.2s; }
-    .todo-card:hover { border-color: #cbd5e1; box-shadow: var(--shadow-md); }
-    .todo-card.completed { background: #fafafa; opacity: 0.65; }
-    .todo-top-row { display: flex; align-items: center; gap: 10px; }
-    .todo-title-input { flex: 1; font-size: 0.92rem; font-weight: 600; color: var(--text-main); border: 1px solid transparent; border-radius: 6px; padding: 4px 8px; background: transparent; outline: none; transition: all 0.2s; }
-    .todo-title-input:focus { background: var(--bg-secondary); border-color: var(--primary); }
-    .todo-card.completed .todo-title-input { text-decoration: line-through; color: var(--text-muted); }
-    .badge-done { font-size: 0.72rem; font-weight: 700; color: var(--success); background: var(--success-light); border: 1px solid #a7f3d0; border-radius: 6px; padding: 2px 8px; white-space: nowrap; }
-    .todo-mid-row { display: flex; align-items: center; gap: 12px; background: var(--bg-secondary); padding: 8px 12px; border-radius: 8px; }
-    .slider-label { font-size: 0.75rem; font-weight: 700; color: var(--text-sub); white-space: nowrap; }
-    .progress-slider-wrap { flex: 1; display: flex; align-items: center; }
-    .todo-slider { width: 100%; -webkit-appearance: none; appearance: none; height: 8px; border-radius: 99px; background: #e2e8f0; outline: none; cursor: pointer; }
-    .todo-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--primary); border: 2.5px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.3); cursor: pointer; }
-    .todo-slider::-moz-range-thumb { width: 18px; height: 18px; border-radius: 50%; background: var(--primary); border: 2.5px solid #fff; cursor: pointer; }
-    .slider-pct { font-size: 0.8rem; font-weight: 800; color: var(--primary); min-width: 38px; text-align: right; }
-    .todo-bottom-row { display: flex; align-items: center; justify-content: flex-end; gap: 8px; }
-    .btn-todo-action { padding: 5px 12px; font-size: 0.78rem; font-weight: 700; border-radius: 6px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; transition: all 0.15s; }
-    .btn-complete { background: var(--success-light); color: var(--success); border: 1px solid #a7f3d0; }
-    .btn-complete:hover { background: var(--success); color: #fff; }
-    .btn-complete.active { background: var(--success); color: #fff; border-color: var(--success); }
-    .btn-delete { background: var(--danger-light); color: var(--danger); border: 1px solid #fecaca; }
-    .btn-delete:hover { background: var(--danger); color: #fff; }
+    /* ─── 1-Row Compact Todo Card ─── */
+    .todo-card {
+      background: #fff;
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 6px 12px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+    .todo-card:hover {
+      border-color: #cbd5e1;
+      box-shadow: var(--shadow-md);
+    }
+    .todo-card.completed {
+      background: #fafafa;
+      opacity: 0.65;
+    }
+    .todo-title-wrap {
+      flex: 1.3;
+      min-width: 110px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .todo-title-input {
+      width: 100%;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--text-main);
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 4px 6px;
+      background: transparent;
+      outline: none;
+      transition: all 0.2s;
+    }
+    .todo-title-input:focus {
+      background: var(--bg-secondary);
+      border-color: var(--primary);
+    }
+    .todo-card.completed .todo-title-input {
+      text-decoration: line-through;
+      color: var(--text-muted);
+    }
+    .badge-done {
+      font-size: 0.68rem;
+      font-weight: 700;
+      color: var(--success);
+      background: var(--success-light);
+      border: 1px solid #a7f3d0;
+      border-radius: 5px;
+      padding: 2px 6px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .todo-progress-wrap {
+      flex: 1.1;
+      min-width: 130px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: var(--bg-secondary);
+      padding: 4px 8px;
+      border-radius: 8px;
+    }
+    .slider-label {
+      font-size: 0.72rem;
+      font-weight: 700;
+      color: var(--text-sub);
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .progress-slider-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+    }
+    .todo-slider {
+      width: 100%;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 99px;
+      background: #e2e8f0;
+      outline: none;
+      cursor: pointer;
+    }
+    .todo-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid #fff;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+      cursor: pointer;
+    }
+    .todo-slider::-moz-range-thumb {
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid #fff;
+      cursor: pointer;
+    }
+    .slider-pct {
+      font-size: 0.76rem;
+      font-weight: 800;
+      color: var(--primary);
+      min-width: 32px;
+      text-align: right;
+      flex-shrink: 0;
+    }
+    .todo-actions-wrap {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .btn-todo-action {
+      padding: 4px 9px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      border-radius: 6px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      transition: all 0.15s;
+      white-space: nowrap;
+    }
+    .btn-complete {
+      background: var(--success-light);
+      color: var(--success);
+      border: 1px solid #a7f3d0;
+    }
+    .btn-complete:hover {
+      background: var(--success);
+      color: #fff;
+    }
+    .btn-complete.active {
+      background: var(--success);
+      color: #fff;
+      border-color: var(--success);
+    }
+    .btn-delete {
+      background: var(--danger-light);
+      color: var(--danger);
+      border: 1px solid #fecaca;
+    }
+    .btn-delete:hover {
+      background: var(--danger);
+      color: #fff;
+    }
 
     /* Right Panel (Post-it) */
     #right-panel { flex: 1; background: var(--bg-secondary); }
@@ -141,18 +277,22 @@
       #right-panel.slide-in { transform: translateX(0); opacity: 1; pointer-events: auto; }
       .postit-grid-container { grid-template-columns: repeat(2, 1fr); grid-template-rows: auto; padding: 14px; gap: 12px; }
     }
+    @media (max-width: 600px) {
+      .todo-card { flex-wrap: wrap; gap: 6px; padding: 8px 10px; }
+      .todo-title-wrap { min-width: 100%; }
+      .todo-progress-wrap { flex: 1; min-width: 130px; }
+    }
     @media (max-width: 540px) {
       .app-header { padding: 8px 14px; }
       .brand-name { font-size: 1rem; }
       .panel-header { padding: 10px 14px; }
       .section-header { padding: 10px 14px; }
-      .todo-list-scroll { padding: 10px 14px; }
+      .todo-list-scroll { padding: 8px 12px; gap: 6px; }
       .postit-grid-container { grid-template-columns: 1fr; padding: 12px; }
       .postit-card { min-height: 140px; }
     }
   </style>
 </head>
-
 <body>
 
 <div id="login-overlay">
@@ -268,7 +408,6 @@
     label.textContent = text;
   }
 
-  // Load from Neon DB and fallback to local storage
   async function loadStateFromDB() {
     updateSyncStatus('syncing', 'Neon DB 불러오는 중...');
     try {
@@ -294,7 +433,6 @@
       console.warn('Neon DB fetch failed, using local storage cache', e);
     }
 
-    // Fallback to local storage if DB empty or offline
     loadLocalState();
     updateSyncStatus('synced', 'Neon DB 연결 대기 (로컬 캐시)');
     renderAll();
@@ -321,7 +459,6 @@
     }
   }
 
-  // Save to localStorage immediately and debounce save to Neon DB
   function saveState(immediate = false) {
     try {
       localStorage.setItem(DATA_KEY, JSON.stringify(appState));
@@ -512,18 +649,18 @@
       card.className = 'todo-card' + (item.completed ? ' completed' : '');
       card.dataset.id = item.id;
       card.innerHTML = 
-        '<div class="todo-top-row">' +
-          '<input type="text" class="todo-title-input" value="' + escapeHtml(item.title) + '" placeholder="할 일 내용을 입력하세요..." oninput="updateTodoTitle(\'' + type + '\', \'' + item.id + '\', this.value)" />' +
+        '<div class="todo-title-wrap">' +
+          '<input type="text" class="todo-title-input" value="' + escapeHtml(item.title) + '" placeholder="할 일을 입력하세요..." oninput="updateTodoTitle(\'' + type + '\', \'' + item.id + '\', this.value)" />' +
           (item.completed ? '<span class="badge-done">✓ 완료</span>' : '') +
         '</div>' +
-        '<div class="todo-mid-row">' +
+        '<div class="todo-progress-wrap">' +
           '<span class="slider-label">진행률</span>' +
           '<div class="progress-slider-wrap">' +
             '<input type="range" class="todo-slider" min="0" max="100" value="' + item.progress + '" style="background: linear-gradient(to right, #2563eb ' + item.progress + '%, #e2e8f0 ' + item.progress + '%);" oninput="updateTodoProgress(\'' + type + '\', \'' + item.id + '\', this.value)" />' +
           '</div>' +
           '<span class="slider-pct">' + item.progress + '%</span>' +
         '</div>' +
-        '<div class="todo-bottom-row">' +
+        '<div class="todo-actions-wrap">' +
           '<button class="btn-todo-action btn-complete ' + (item.completed ? 'active' : '') + '" onclick="toggleTodoComplete(\'' + type + '\', \'' + item.id + '\')">' + (item.completed ? '✓ 완료됨' : '✓ 완료') + '</button>' +
           '<button class="btn-todo-action btn-delete" onclick="deleteTodo(\'' + type + '\', \'' + item.id + '\')">🗑 삭제</button>' +
         '</div>';
