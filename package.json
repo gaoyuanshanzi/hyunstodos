@@ -1,7 +1,7 @@
-﻿{
+{
   "name": "hyunstodos",
   "version": "1.0.0",
-  "description": "Web-based To-Do and 9 Post-it Board",
+  "description": "Web-based To-Do and Post-it board",
   "scripts": {
     "start": "npx serve ."
   }
